@@ -112,7 +112,7 @@ def handle_update_ns(client: CloudflareClient) -> None:
     raw: str = Prompt.ask("New nameservers (comma-separated)")
     name_servers: list[str] = [ns.strip() for ns in raw.split(",") if ns.strip()]
     if not name_servers:
-        show_error("At least one nameserver is required.")
+        show_info("Cancelled.")
         return
     if not Confirm.ask(
         f"Set {zone.name} NS -> {', '.join(name_servers)}?", default=False

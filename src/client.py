@@ -34,6 +34,9 @@ class CloudflareClient:
         self._http.close()
 
     def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        return self._send(method, path, **kwargs).get("result")
+
+    def _send(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         try:
             response: httpx.Response = self._http.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
@@ -57,7 +60,21 @@ class CloudflareClient:
             )
             raise CloudflareAPIError(messages)
 
-        return payload.get("result")
+        return payload
+
+    def _request_all_pages(self, path: str, per_page: int) -> list[Any]:
+        """Fetch every page of a paginated GET endpoint and merge the results."""
+        items: list[Any] = []
+        page: int = 1
+        while True:
+            payload: dict[str, Any] = self._send(
+                "GET", path, params={"per_page": per_page, "page": page}
+            )
+            items.extend(payload.get("result") or [])
+            info: dict[str, Any] = payload.get("result_info") or {}
+            if page >= int(info.get("total_pages", 1)):
+                return items
+            page += 1
 
     def verify(self) -> str:
         """Verify credentials, returns the account/token identity."""
@@ -70,14 +87,14 @@ class CloudflareClient:
         return f"{username} <{email}>" if email else username
 
     def list_zones(self) -> list[Zone]:
-        result: Any = self._request("GET", "/zones", params={"per_page": 50})
-        return [Zone.from_dict(z) for z in result or []]
+        result: list[Any] = self._request_all_pages("/zones", per_page=50)
+        return [Zone.from_dict(z) for z in result]
 
     def list_dns_records(self, zone_id: str) -> list[DNSRecord]:
-        result: Any = self._request(
-            "GET", f"/zones/{zone_id}/dns_records", params={"per_page": 100}
+        result: list[Any] = self._request_all_pages(
+            f"/zones/{zone_id}/dns_records", per_page=100
         )
-        return [DNSRecord.from_dict(r) for r in result or []]
+        return [DNSRecord.from_dict(r) for r in result]
 
     def create_dns_record(
         self,

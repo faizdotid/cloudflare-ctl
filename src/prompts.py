@@ -78,16 +78,25 @@ def render_dns_table(records: list[DNSRecord]) -> None:
     console.print(table)
 
 
+def _ask_number(question: str, maximum: int) -> int:
+    """Ask for a number in [0, maximum], re-asking on out-of-range input."""
+    while True:
+        number: int = IntPrompt.ask(f"{question} (0-{maximum}, 0 to cancel)")
+        if 0 <= number <= maximum:
+            return number
+        show_error(f"Enter a number between 0 and {maximum}.")
+
+
 def prompt_zone(zones: list[Zone]) -> Zone | None:
-    """Pick one zone from the list; None if the list is empty."""
+    """Pick one zone from the list; None if empty or cancelled."""
     if not zones:
         show_error("No domains (zones) found in this account.")
         return None
     render_zones_table(zones)
-    index: int = IntPrompt.ask(
-        "Pick a domain number",
-        choices=[str(i) for i in range(1, len(zones) + 1)],
-    )
+    index: int = _ask_number("Pick a domain number", len(zones))
+    if index == 0:
+        show_info("Cancelled.")
+        return None
     return zones[index - 1]
 
 
@@ -105,15 +114,15 @@ def prompt_dns_record() -> tuple[str, str, str, int, bool]:
 
 
 def prompt_record_choice(records: list[DNSRecord]) -> DNSRecord | None:
-    """Pick one DNS record from the list; None if the list is empty."""
+    """Pick one DNS record from the list; None if empty or cancelled."""
     if not records:
         show_error("This zone has no DNS records yet.")
         return None
     render_dns_table(records)
-    index: int = IntPrompt.ask(
-        "Pick a record number",
-        choices=[str(i) for i in range(1, len(records) + 1)],
-    )
+    index: int = _ask_number("Pick a record number", len(records))
+    if index == 0:
+        show_info("Cancelled.")
+        return None
     return records[index - 1]
 
 
